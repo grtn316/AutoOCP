@@ -1,0 +1,59 @@
+#cloud-config
+
+runcmd:
+ - mkdir /tmp/OCPInstall
+ - mkdir ~/.azure/
+ - echo '{"subscriptionId":"${subscriptionId}","clientId":"${applicationId}","clientSecret":"${applicationSecret}","tenantId":"${tenantId}"}' > ~/.azure/osServicePrincipal.json
+ - [ wget, -nv, "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.6.48/openshift-install-linux.tar.gz", -O, /tmp/OCPInstall/openshift-install-linux.tar.gz ]
+ - echo "ssh-rsa ${sshPubKey}" > /tmp/id_rsa
+ - mkdir /tmp/OCPInstall/QuickCluster
+ - tar xvf /tmp/OCPInstall/openshift-install-linux.tar.gz -C /tmp/OCPInstall
+ - [ wget, -nv, "https://raw.githubusercontent.com/Azure/maximo/main/src/ocp/install-config.yaml", -O, /tmp/OCPInstall/install-config.yaml ]
+ - |
+    export baseDomain="${baseDomain}"
+    export clusterName="${clusterName}"
+    export deployRegion="${location}"
+    export baseDomainResourceGroup="${baseDomainResourceGroup}"
+    export pullSecret='${pullSecret}'
+    export sshPubKey="${sshPubKey}"
+ - envsubst < /tmp/OCPInstall/install-config.yaml > /tmp/OCPInstall/QuickCluster/install-config.yaml
+ - sudo /tmp/OCPInstall/openshift-install create cluster --dir=/tmp/OCPInstall/QuickCluster --log-level=info
+ - export clusterName=$(cat /tmp/OCPInstall/QuickCluster/metadata.json | jq -r .infraID)
+ - [ wget, -nv, "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.6.48/openshift-client-linux.tar.gz", -O, /tmp/OCPInstall/openshift-client-linux.tar.gz ]
+ - tar xvf /tmp/OCPInstall/openshift-client-linux.tar.gz -C /tmp/OCPInstall
+ - export KUBECONFIG=/tmp/OCPInstall/QuickCluster/auth/kubeconfig
+ - [ wget, -nv, "https://raw.githubusercontent.com/Azure/maximo/main/src/machinesets/db2.yaml", -O, /tmp/OCPInstall/db2.yaml ]
+ - [ wget, -nv, "https://raw.githubusercontent.com/Azure/maximo/main/src/machinesets/ocs.yaml", -O, /tmp/OCPInstall/ocs.yaml ]
+ - [ wget, -nv, "https://raw.githubusercontent.com/Azure/maximo/main/src/machinesets/worker.yaml", -O, /tmp/OCPInstall/worker.yaml ]
+ - export zone=1
+ - export numReplicas=1
+ - envsubst < /tmp/OCPInstall/db2.yaml > /tmp/OCPInstall/QuickCluster/db2.yaml
+ - export numReplicas=2
+ - envsubst < /tmp/OCPInstall/ocs.yaml > /tmp/OCPInstall/QuickCluster/ocs.yaml
+ - export numReplicas=3
+ - envsubst < /tmp/OCPInstall/worker.yaml > /tmp/OCPInstall/QuickCluster/worker.yaml
+ - sudo -E /tmp/OCPInstall/oc apply -f /tmp/OCPInstall/QuickCluster/db2.yaml
+ - sudo -E /tmp/OCPInstall/oc apply -f /tmp/OCPInstall/QuickCluster/ocs.yaml
+ - sudo -E /tmp/OCPInstall/oc apply -f /tmp/OCPInstall/QuickCluster/worker.yaml
+ - sudo -E /tmp/OCPInstall/oc scale --replicas=0 machineset $(grep -A3 'name:' /tmp/OCPInstall/QuickCluster/worker.yaml | head -n1 | awk '{ print $2}') -n openshift-machine-api
+ - sudo -E /tmp/OCPInstall/oc scale --replicas=3 machineset $(grep -A3 'name:' /tmp/OCPInstall/QuickCluster/worker.yaml | head -n1 | awk '{ print $2}') -n openshift-machine-api
+ - export zone=2
+ - export numReplicas=1
+ - envsubst < /tmp/OCPInstall/db2.yaml > /tmp/OCPInstall/QuickCluster/db2.yaml
+ - export numReplicas=1
+ - envsubst < /tmp/OCPInstall/ocs.yaml > /tmp/OCPInstall/QuickCluster/ocs.yaml
+ - export numReplicas=3
+ - envsubst < /tmp/OCPInstall/worker.yaml > /tmp/OCPInstall/QuickCluster/worker.yaml
+ - sudo -E /tmp/OCPInstall/oc apply -f /tmp/OCPInstall/QuickCluster/db2.yaml
+ - sudo -E /tmp/OCPInstall/oc apply -f /tmp/OCPInstall/QuickCluster/ocs.yaml
+ - sudo -E /tmp/OCPInstall/oc apply -f /tmp/OCPInstall/QuickCluster/worker.yaml
+ - sudo -E /tmp/OCPInstall/oc scale --replicas=0 machineset $(grep -A3 'name:' /tmp/OCPInstall/QuickCluster/worker.yaml | head -n1 | awk '{ print $2}') -n openshift-machine-api
+ - sudo -E /tmp/OCPInstall/oc scale --replicas=3 machineset $(grep -A3 'name:' /tmp/OCPInstall/QuickCluster/worker.yaml | head -n1 | awk '{ print $2}') -n openshift-machine-api
+ - export zone=3
+ - export numReplicas=3
+ - envsubst < /tmp/OCPInstall/worker.yaml > /tmp/OCPInstall/QuickCluster/worker.yaml
+ - sudo -E /tmp/OCPInstall/oc apply -f /tmp/OCPInstall/QuickCluster/worker.yaml
+ - sudo -E /tmp/OCPInstall/oc scale --replicas=0 machineset $(grep -A3 'name:' /tmp/OCPInstall/QuickCluster/worker.yaml | head -n1 | awk '{ print $2}') -n openshift-machine-api
+ - sudo -E /tmp/OCPInstall/oc scale --replicas=3 machineset $(grep -A3 'name:' /tmp/OCPInstall/QuickCluster/worker.yaml | head -n1 | awk '{ print $2}') -n openshift-machine-api
+ - sudo -E /tmp/OCPInstall/oc apply -f https://raw.githubusercontent.com/Azure/maximo/main/src/storageclasses/azurefiles.yaml
+ - sudo -E /tmp/OCPInstall/oc apply -f https://raw.githubusercontent.com/Azure/maximo/main/src/storageclasses/persistent-volume-binder.yaml
