@@ -8,7 +8,7 @@ runcmd:
  - echo "ssh-rsa ${sshPubKey}" > /tmp/id_rsa
  - mkdir /tmp/OCPInstall/QuickCluster
  - tar xvf /tmp/OCPInstall/openshift-install-linux.tar.gz -C /tmp/OCPInstall
- - [ wget, -nv, "https://raw.githubusercontent.com/Azure/maximo/main/src/ocp/install-config.yaml", -O, /tmp/OCPInstall/install-config.yaml ]
+ - [ wget, -nv, "https://raw.githubusercontent.com/Azure/maximo/4.6/src/ocp/install-config.yaml", -O, /tmp/OCPInstall/install-config.yaml ]
  - |
     export baseDomain="${baseDomain}"
     export clusterName="${clusterName}"
@@ -16,15 +16,16 @@ runcmd:
     export baseDomainResourceGroup="${baseDomainResourceGroup}"
     export pullSecret='${pullSecret}'
     export sshPubKey="${sshPubKey}"
+    export ENTITLEMENT_KEY="${entitlementKey}"
  - envsubst < /tmp/OCPInstall/install-config.yaml > /tmp/OCPInstall/QuickCluster/install-config.yaml
  - sudo /tmp/OCPInstall/openshift-install create cluster --dir=/tmp/OCPInstall/QuickCluster --log-level=info
- - export clusterName=$(cat /tmp/OCPInstall/QuickCluster/metadata.json | jq -r .infraID)
+ - export clusterInstanceName=$(cat /tmp/OCPInstall/QuickCluster/metadata.json | jq -r .infraID)
  - [ wget, -nv, "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.6.48/openshift-client-linux.tar.gz", -O, /tmp/OCPInstall/openshift-client-linux.tar.gz ]
  - tar xvf /tmp/OCPInstall/openshift-client-linux.tar.gz -C /tmp/OCPInstall
  - export KUBECONFIG=/tmp/OCPInstall/QuickCluster/auth/kubeconfig
- - [ wget, -nv, "https://raw.githubusercontent.com/Azure/maximo/main/src/machinesets/db2.yaml", -O, /tmp/OCPInstall/db2.yaml ]
- - [ wget, -nv, "https://raw.githubusercontent.com/Azure/maximo/main/src/machinesets/ocs.yaml", -O, /tmp/OCPInstall/ocs.yaml ]
- - [ wget, -nv, "https://raw.githubusercontent.com/Azure/maximo/main/src/machinesets/worker.yaml", -O, /tmp/OCPInstall/worker.yaml ]
+ - [ wget, -nv, "https://raw.githubusercontent.com/Azure/maximo/4.6/src/machinesets/db2.yaml", -O, /tmp/OCPInstall/db2.yaml ]
+ - [ wget, -nv, "https://raw.githubusercontent.com/Azure/maximo/4.6/src/machinesets/ocs.yaml", -O, /tmp/OCPInstall/ocs.yaml ]
+ - [ wget, -nv, "https://raw.githubusercontent.com/Azure/maximo/4.6/src/machinesets/worker.yaml", -O, /tmp/OCPInstall/worker.yaml ]
  - export zone=1
  - export numReplicas=1
  - envsubst < /tmp/OCPInstall/db2.yaml > /tmp/OCPInstall/QuickCluster/db2.yaml
@@ -55,5 +56,8 @@ runcmd:
  - sudo -E /tmp/OCPInstall/oc apply -f /tmp/OCPInstall/QuickCluster/worker.yaml
  - sudo -E /tmp/OCPInstall/oc scale --replicas=0 machineset $(grep -A3 'name:' /tmp/OCPInstall/QuickCluster/worker.yaml | head -n1 | awk '{ print $2}') -n openshift-machine-api
  - sudo -E /tmp/OCPInstall/oc scale --replicas=3 machineset $(grep -A3 'name:' /tmp/OCPInstall/QuickCluster/worker.yaml | head -n1 | awk '{ print $2}') -n openshift-machine-api
- - sudo -E /tmp/OCPInstall/oc apply -f https://raw.githubusercontent.com/Azure/maximo/main/src/storageclasses/azurefiles.yaml
- - sudo -E /tmp/OCPInstall/oc apply -f https://raw.githubusercontent.com/Azure/maximo/main/src/storageclasses/persistent-volume-binder.yaml
+ - sudo -E /tmp/OCPInstall/oc apply -f https://raw.githubusercontent.com/Azure/maximo/4.6/src/storageclasses/azurefiles.yaml
+ - sudo -E /tmp/OCPInstall/oc apply -f https://raw.githubusercontent.com/Azure/maximo/4.6/src/storageclasses/persistent-volume-binder.yaml
+ - [ wget, -nv, "https://raw.githubusercontent.com/Azure/maximo/4.6/src/installers/mas_deploy.sh", -O, mas_deploy.sh ]
+ - chmod +x mas_deploy.sh
+ - sudo -E ./mas_deploy.sh

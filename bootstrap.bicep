@@ -22,6 +22,7 @@ param applicationId string
 param applicationSecret string
 param sshPubKey string
 param pullSecret string
+param entitlementKey string
 param domainName string
 param clusterName string
 param baseDomainResourceGroup string //used for ocp yaml config
@@ -63,6 +64,7 @@ module secondStorageAcct 'sidecar.bicep' = {
     applicationSecret: applicationSecret
     sshPubKey: sshPubKey
     pullSecret: pullSecret
+    entitlementKey: entitlementKey
     baseDomain: domainName
     clusterName: clusterName
     baseDomainResourceGroup: baseDomainResourceGroup
